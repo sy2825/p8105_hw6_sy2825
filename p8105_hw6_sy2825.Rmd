@@ -9,3 +9,21 @@ date: "2018-11-25"
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
+ Problem 1
+ 
+```{r inport_homicides_data, echo = FALSE}
+
+url = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv"
+homicides_data = read_csv(url) %>%
+  janitor::clean_names() %>%
+  mutate(city_state = paste(city, state, sep = ", ")) %>%
+  mutate(solved = ifelse(disposition == "Closed by arrest", 1, 0)) %>%
+  filter(!(city_state %in% c("Dallas, TX", "Phoenix, AZ", "Kansas City, MO", "Tulsa, AL"))) %>%
+  mutate(victim_race = ifelse(victim_race == "White", "white", "non-white")) %>%
+  mutate(victim_race = fct_relevel(victim_race, "white", "non-white")) %>%
+  mutate(victim_age = as.numeric(victim_age))
+
+homicides_data
+```
+ 
+ 
