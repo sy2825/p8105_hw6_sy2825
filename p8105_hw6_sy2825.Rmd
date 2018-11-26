@@ -9,11 +9,12 @@ date: "2018-11-25"
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 ```
- Problem 1
+
+#Problem 1
  
 First, let's import and tidy the data.
  
-```{r import_homicides_data, echo = FALSE}
+```{r import_homicides_data}
 
 url = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv"
 homicides_data = read_csv(url) %>%
@@ -78,12 +79,65 @@ each_city_glm %>%
   geom_point() + 
   geom_errorbar(aes(ymin = conf_low, ymax = conf_high)) + 
   labs(
-    title = "Estimated ORs and CIs of Race Factor for 50 Cities",
+    title = "Estimated ORs and CIs of Race Factor for Solving Homicides in 50 Cities",
     x = "City",
     y = "Estimated ORs",
     caption = "Data from Washington Post"
   ) +
   theme(axis.text.x = element_text(angle = 70, hjust = 1)) +
   theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+As we can see the estimate of the adjusted odds ratio for solving homicides comparing non-white victims to white victims is lowest in Boston and highest in Tampa, FL.
+
+# Problem 2
+
+First, let's import and tidy the birthweight data.
+
+```{r import_and_tidy_birthweight_data}
+
+birthweight_data = read_csv(file = "./data/birthweight.csv") %>%
+  mutate(babysex = as.factor(babysex),
+         frace = as.factor(frace),
+         malform = as.factor(malform),
+         mrace = factor(mrace))
+
+```
+
+We have converted babysex, frace, malfom, mrace from numeric to factor, and there is `r sum((is.na(birthweight_data)))` missing data.
+
+We have `r ncol(birthweight_data)` different variables in the data and we need to determine which of them will be used to fit our regression model. We will choose predictors using backward elimination.
+
+```{r stepwise_regression_elimination}
+
+birthweight_fit_all = lm(bwt ~ ., data = birthweight_data)
+
+step(birthweight_fit_all, direction = "backward") %>%
+  broom::tidy()
+
+
+```
+
+As we can see, our final predictors for our regression model are babysex, bhead, blength, delwt, fincome, gaweeks, mheight, mrace, parity, ppwt, and smoken.
+
+```{r birthweight_regression_model}
+
+birthweight_regression_model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, 
+                                  data = birthweight_data)
+
+birthweight_regression_model %>%
+  broom::tidy()
+
+birthweight_data %>%
+  modelr::add_predictions(birthweight_regression_model) %>%
+  modelr::add_residuals(birthweight_regression_model) %>%
+  ggplot(aes(x = pred, y = resid)) + geom_point() + geom_smooth() +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted Values",
+    y = "Residuals") +
+  theme(plot.title = element_text(hjust = 0.5))
+  
 
 ```
