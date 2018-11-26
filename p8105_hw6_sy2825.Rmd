@@ -11,7 +11,9 @@ library(tidyverse)
 ```
  Problem 1
  
-```{r inport_homicides_data, echo = FALSE}
+First, let's import and tidy the data.
+ 
+```{r import_homicides_data, echo = FALSE}
 
 url = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv"
 homicides_data = read_csv(url) %>%
@@ -23,7 +25,53 @@ homicides_data = read_csv(url) %>%
   mutate(victim_race = fct_relevel(victim_race, "white", "non-white")) %>%
   mutate(victim_age = as.numeric(victim_age))
 
-homicides_data
 ```
- 
- 
+
+Now let's fit a logistic regression for Baltimore, MD.
+
+```{r Baltimore_MD_logistic_regression}
+
+baltimore_md_data = homicides_data %>%
+  filter(city_state == "Baltimore, MD")
+
+baltimore_md_fit = glm(solved ~ victim_age + victim_sex + victim_race, data = baltimore_md_data, family = "binomial")
+
+broom::tidy(baltimore_md_fit, conf.int = TRUE) %>%
+  filter(term == "victim_racenon-white") %>%
+  mutate(odds_ratio = exp(estimate),
+         conf.low = exp(conf.low),
+         conf.high = exp(conf.high)) %>%
+  select(8, 6, 7) %>%
+  janitor::clean_names() %>%
+  knitr::kable(digits = 3)
+
+```
+
+Now let's run glm for each of the cities in our dataset.
+
+```{r each_city_logistic_regression, warning = FALSE}
+
+glm_test = function(x) {
+  
+  glm_test_fit = glm(solved ~ victim_age + victim_sex + victim_race, data = x, family = "binomial")
+  
+ broom::tidy(glm_test_fit, conf.int = TRUE)
+   
+}
+
+each_city_glm = homicides_data %>%
+  group_by(city_state) %>%
+  nest() %>%
+  mutate(each_city_glm_test = map(data, glm_test)) %>% 
+  select(-data) %>% 
+  unnest() %>%
+  filter(term == "victim_racenon-white") %>%
+  mutate(odds_ratio = exp(estimate),
+         conf.low = exp(conf.low),
+         conf.high = exp(conf.high)) %>%
+  select(1, 9, 7, 8) %>%
+  janitor::clean_names()
+
+each_city_glm
+
+```
