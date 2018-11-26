@@ -72,6 +72,18 @@ each_city_glm = homicides_data %>%
   select(1, 9, 7, 8) %>%
   janitor::clean_names()
 
-each_city_glm
+each_city_glm %>% 
+  mutate(city_state = fct_reorder(city_state, odds_ratio)) %>% 
+  ggplot(aes(x = city_state, y = odds_ratio)) + 
+  geom_point() + 
+  geom_errorbar(aes(ymin = conf_low, ymax = conf_high)) + 
+  labs(
+    title = "Estimated ORs and CIs of Race Factor for 50 Cities",
+    x = "City",
+    y = "Estimated ORs",
+    caption = "Data from Washington Post"
+  ) +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1)) +
+  theme(plot.title = element_text(hjust = 0.5))
 
 ```
