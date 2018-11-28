@@ -8,6 +8,8 @@ date: "2018-11-25"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(modelr)
+library(mgcv)
 ```
 
 #Problem 1
@@ -119,7 +121,7 @@ step(birthweight_fit_all, direction = "backward") %>%
 
 ```
 
-As we can see, our final predictors for our regression model are babysex, bhead, blength, delwt, fincome, gaweeks, mheight, mrace, parity, ppwt, and smoken.
+As we can see, our final predictors for our regression model will be babysex, bhead, blength, delwt, fincome, gaweeks, mheight, mrace, parity, ppwt, and smoken.
 
 ```{r birthweight_regression_model}
 
@@ -141,3 +143,40 @@ birthweight_data %>%
   
 
 ```
+
+From the plot we can see that the line is relatively flat on the right side of the plot.
+
+```{r birthweight_cross_validation}
+
+birthweight_cross_validation =
+  crossv_mc(birthweight_data, 100) %>% 
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
+
+birthweight_cross_validation = 
+  birthweight_cross_validation %>% 
+  mutate(backward_mod = map(train, ~lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, 
+                                  data = .x)),
+         main_effect_mod = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         interaction_mod = map(train, ~lm(bwt ~ bhead + blength + babysex + 
+                                          bhead * blength + bhead * babysex + blength * babysex + bhead * blength * babysex, 
+                                          data = as_tibble(.x)))) %>% 
+  mutate(rmse_backward    = map2_dbl(backward_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_main_effect = map2_dbl(main_effect_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_interaction = map2_dbl(interaction_mod, test, ~rmse(model = .x, data = .y)))
+
+birthweight_cross_validation %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin() +
+  labs(
+    title = "Prediction Error Distribution for Each Candidate Model",
+    x = "Models",
+    y = "RMSE") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Compare with the other two models, my model designed by backward elimination has the lowest rmse which is root-mean-square error. That means my model has lowest differences between values predicted by it and the values observed. So my model works better than the two other models.
